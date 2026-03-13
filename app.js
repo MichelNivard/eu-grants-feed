@@ -75,12 +75,22 @@ function formatCurrency(value) {
 }
 
 function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('\"', '&quot;')
-    .replaceAll("'", '&#39;');
+  return String(value).replace(/[&<>"']/g, (character) => {
+    switch (character) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      case "'":
+        return '&#39;';
+      default:
+        return character;
+    }
+  });
 }
 
 function toggleProgrammeFilter(programmeId) {
@@ -184,12 +194,15 @@ function renderProgrammeOptions() {
 
 function renderMetrics() {
   const openCount = state.data.summary.byStatus['31094502'] || 0;
-  const sourceCount = Number(
+  const rawSourceCount =
     state.data.source?.storedResults
+      ?? state.data.source?.totalResults
       ?? state.data.source?.reportedTotalResults
       ?? state.data.grants?.length
-      ?? 0
-  );
+      ?? 0;
+  const sourceCount = Number.isFinite(Number(rawSourceCount))
+    ? Number(rawSourceCount)
+    : (state.data.grants?.length || 0);
 
   elements.metricTotal.textContent = compactNumber.format(state.data.summary.total);
   elements.metricLive.textContent = compactNumber.format(openCount);
@@ -252,6 +265,7 @@ function renderResults() {
     const statusChip = card.querySelector('.status-chip');
     const id = card.querySelector('.grant-card__id');
     const titleButton = card.querySelector('.grant-card__title-button');
+    const legacyTitleLink = card.querySelector('.grant-card__title a');
     const openLink = card.querySelector('.grant-card__open-link');
     const summary = card.querySelector('.grant-card__summary');
     const drawer = card.querySelector('.grant-card__drawer');
@@ -263,26 +277,38 @@ function renderResults() {
     statusChip.dataset.status = grant.status.id;
     statusChip.textContent = grant.status.label;
     id.textContent = grant.identifier;
-    titleButton.textContent = grant.title;
-    titleButton.setAttribute('aria-expanded', 'false');
-    openLink.href = grant.url;
+    if (titleButton) {
+      titleButton.textContent = grant.title;
+      titleButton.setAttribute('aria-expanded', 'false');
+    }
+    if (legacyTitleLink) {
+      legacyTitleLink.textContent = grant.title;
+      legacyTitleLink.href = grant.url;
+    }
+    if (openLink) {
+      openLink.href = grant.url;
+    }
     summary.textContent = grant.destination || grant.callTitle || grant.summary || 'No destination summary available.';
-    drawerSummary.textContent = grant.destination || grant.callTitle || grant.summary || 'No short summary was exposed for this call.';
+    if (drawerSummary) {
+      drawerSummary.textContent = grant.destination || grant.callTitle || grant.summary || 'No short summary was exposed for this call.';
+    }
 
-    if (grant.abstract) {
+    if (grant.abstract && drawerAbstract && drawerAbstractBlock) {
       drawerAbstract.textContent = grant.abstract;
       drawerAbstractBlock.hidden = false;
-    } else {
+    } else if (drawerAbstract && drawerAbstractBlock) {
       drawerAbstract.textContent = '';
       drawerAbstractBlock.hidden = true;
     }
 
-    titleButton.addEventListener('click', () => {
-      const isOpen = !drawer.hidden;
-      drawer.hidden = isOpen;
-      card.classList.toggle('is-expanded', !isOpen);
-      titleButton.setAttribute('aria-expanded', String(!isOpen));
-    });
+    if (titleButton && drawer) {
+      titleButton.addEventListener('click', () => {
+        const isOpen = !drawer.hidden;
+        drawer.hidden = isOpen;
+        card.classList.toggle('is-expanded', !isOpen);
+        titleButton.setAttribute('aria-expanded', String(!isOpen));
+      });
+    }
 
     facts.innerHTML = [
       createFact('Programme', getPrimaryProgramme(grant)),
