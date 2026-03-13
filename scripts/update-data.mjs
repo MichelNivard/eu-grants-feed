@@ -23,6 +23,7 @@ const DISPLAY_FIELDS = [
   'actions',
   'url',
   'destinationDescription',
+  'descriptionByte',
   'summary'
 ];
 
@@ -61,6 +62,64 @@ function parseJson(value) {
   } catch {
     return null;
   }
+}
+
+function decodeHtmlEntities(value) {
+  if (!value) {
+    return '';
+  }
+
+  const namedEntities = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&nbsp;': ' '
+  };
+
+  return value
+    .replace(/&(amp|lt|gt|quot|nbsp|#39);/g, (entity) => namedEntities[entity] || entity)
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)));
+}
+
+function htmlToText(value) {
+  if (!value) {
+    return null;
+  }
+
+  const text = decodeHtmlEntities(
+    value
+      .replace(/<\s*br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|li|ul|ol|h[1-6])>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '- ')
+      .replace(/<[^>]+>/g, ' ')
+  )
+    .replace(/\r/g, '')
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n\n')
+    .trim();
+
+  return text || null;
+}
+
+function excerptText(value, maxLength = 1100) {
+  if (!value) {
+    return null;
+  }
+
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  const slice = value.slice(0, maxLength);
+  const sentenceBreak = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('! '), slice.lastIndexOf('? '));
+  const wordBreak = slice.lastIndexOf(' ');
+  const cutoff = sentenceBreak > maxLength * 0.55 ? sentenceBreak + 1 : wordBreak;
+  return `${slice.slice(0, cutoff > 0 ? cutoff : maxLength).trim()}…`;
 }
 
 function toIsoDate(value) {
@@ -358,20 +417,24 @@ function normalizeResult(result, lookups) {
   const identifier = first(metadata.identifier);
   const action = extractAction(first(metadata.actions));
   const budget = extractBudget(identifier, first(metadata.budgetOverview));
+  const abstractText = excerptText(htmlToText(first(metadata.descriptionByte)));
   const statusId = first(metadata.status) || action?.statusId || null;
   const typeId = first(metadata.type) || null;
   const frameworkProgrammeIds = all(metadata.frameworkProgramme);
   const programmeDivisionIds = all(metadata.programmeDivision);
+  const destination = first(metadata.destinationDescription);
+  const summary = result.summary || destination || '';
 
   return {
     id: result.reference,
     identifier,
     title: first(metadata.title) || result.summary || result.content || identifier,
-    summary: result.summary || first(metadata.destinationDescription) || '',
+    summary,
     url: first(metadata.url) || result.url,
     callIdentifier: first(metadata.callIdentifier),
     callTitle: first(metadata.callTitle),
-    destination: first(metadata.destinationDescription),
+    destination,
+    abstract: abstractText,
     actionType: first(metadata.typesOfAction),
     status: {
       id: statusId,
@@ -391,11 +454,12 @@ function normalizeResult(result, lookups) {
     searchText: [
       identifier,
       first(metadata.title),
-      result.summary,
+      summary,
       first(metadata.callIdentifier),
       first(metadata.callTitle),
-      first(metadata.destinationDescription),
-      first(metadata.typesOfAction)
+      destination,
+      first(metadata.typesOfAction),
+      abstractText
     ].filter(Boolean).join(' ')
   };
 }
@@ -421,6 +485,7 @@ function buildSummary(grants) {
 
 async function main() {
   await mkdir(OUTPUT_DIR, { recursive: true });
+  const now = Date.now();
 
   const endpoints = await fetchPortalConfig();
   console.log('Using official endpoints from portal config.');
@@ -434,6 +499,7 @@ async function main() {
   const lookups = buildFacetLookups(facets);
   const grants = dedupeResults(search.results)
     .map((result) => normalizeResult(result, lookups))
+    .filter((grant) => !grant.deadlineDate || new Date(grant.deadlineDate).getTime() >= now)
     .sort((left, right) => {
       const leftDate = left.startDate ? new Date(left.startDate).getTime() : 0;
       const rightDate = right.startDate ? new Date(right.startDate).getTime() : 0;

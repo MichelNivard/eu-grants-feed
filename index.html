@@ -85,12 +85,8 @@
           </div>
 
           <div class="sidebar-block">
-            <p class="sidebar__label">Closing soon</p>
-            <div id="closing-soon" class="mini-list"></div>
-          </div>
-
-          <div class="sidebar-block">
-            <p class="sidebar__label">Top programmes</p>
+            <p class="sidebar__label">Programme filters</p>
+            <p class="sidebar__copy">Click a programme to apply that filter instantly.</p>
             <div id="top-programmes" class="mini-list"></div>
           </div>
         </aside>
@@ -119,8 +115,21 @@
           <span class="status-chip"></span>
           <span class="grant-card__id"></span>
         </div>
-        <h3 class="grant-card__title"><a target="_blank" rel="noreferrer"></a></h3>
+        <div class="grant-card__title-row">
+          <h3 class="grant-card__title"><button class="grant-card__title-button" type="button"></button></h3>
+          <a class="grant-card__open-link" target="_blank" rel="noreferrer">Open</a>
+        </div>
         <p class="grant-card__summary"></p>
+        <div class="grant-card__drawer" hidden>
+          <div class="grant-card__drawer-block">
+            <p class="grant-card__drawer-label">Feed summary</p>
+            <p class="grant-card__drawer-text grant-card__drawer-summary"></p>
+          </div>
+          <div class="grant-card__drawer-block grant-card__drawer-block--abstract" hidden>
+            <p class="grant-card__drawer-label">Abstract / scope</p>
+            <p class="grant-card__drawer-text grant-card__drawer-abstract"></p>
+          </div>
+        </div>
         <dl class="grant-card__facts"></dl>
       </article>
     </template>

@@ -33,7 +33,6 @@ const elements = {
   resultsHeadline: document.querySelector('#results-headline'),
   resultsList: document.querySelector('#results-list'),
   loadMoreButton: document.querySelector('#load-more-button'),
-  closingSoon: document.querySelector('#closing-soon'),
   topProgrammes: document.querySelector('#top-programmes'),
   grantCardTemplate: document.querySelector('#grant-card-template')
 };
@@ -41,7 +40,6 @@ const elements = {
 const compactNumber = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 const moneyCompact = new Intl.NumberFormat('en', { style: 'currency', currency: 'EUR', notation: 'compact', maximumFractionDigits: 1 });
 const dateFormatter = new Intl.DateTimeFormat('en', { dateStyle: 'medium' });
-const relativeFormatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
 function parseHash() {
   const hash = window.location.hash.replace(/^#/, '');
@@ -71,13 +69,6 @@ function formatDate(value) {
   return dateFormatter.format(new Date(value));
 }
 
-function formatRelative(dateString) {
-  if (!dateString) return 'No deadline';
-  const difference = new Date(dateString).getTime() - Date.now();
-  const days = Math.round(difference / (1000 * 60 * 60 * 24));
-  return relativeFormatter.format(days, 'day');
-}
-
 function formatCurrency(value) {
   if (!value) return 'Unknown';
   return moneyCompact.format(value);
@@ -92,6 +83,13 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
+function toggleProgrammeFilter(programmeId) {
+  state.filters.programme = state.filters.programme === programmeId ? 'all' : programmeId;
+  state.visibleCount = PAGE_STEP;
+  syncControls();
+  update();
+}
+
 function getPrimaryProgramme(grant) {
   return grant.frameworkProgrammes[0]?.label || grant.programmeDivisions[0]?.label || grant.callIdentifier?.split('-')[0] || 'Programme unavailable';
 }
@@ -103,9 +101,14 @@ function getStatusOption(id) {
 function filterGrants() {
   const query = state.filters.query.trim().toLowerCase();
   const statusOption = getStatusOption(state.filters.status);
+  const now = Date.now();
 
   state.filtered = state.data.grants
     .filter((grant) => {
+      if (grant.deadlineDate && new Date(grant.deadlineDate).getTime() < now) {
+        return false;
+      }
+
       if (statusOption.matches && !statusOption.matches.has(grant.status.id)) {
         return false;
       }
@@ -181,47 +184,43 @@ function renderProgrammeOptions() {
 
 function renderMetrics() {
   const openCount = state.data.summary.byStatus['31094502'] || 0;
+  const sourceCount = Number(
+    state.data.source?.storedResults
+      ?? state.data.source?.reportedTotalResults
+      ?? state.data.grants?.length
+      ?? 0
+  );
+
   elements.metricTotal.textContent = compactNumber.format(state.data.summary.total);
   elements.metricLive.textContent = compactNumber.format(openCount);
   elements.metricBudget.textContent = formatCurrency(state.data.summary.knownBudgetEur);
   elements.lastUpdated.textContent = formatDate(state.data.generatedAt);
-  elements.sourceCount.textContent = `${compactNumber.format(state.data.source.totalResults)} calls from the official EU index`;
-}
-
-function renderMiniList(container, items, formatter) {
-  container.innerHTML = '';
-
-  if (!items.length) {
-    const empty = document.createElement('div');
-    empty.className = 'mini-list__item';
-    empty.textContent = 'No items in this slice.';
-    container.appendChild(empty);
-    return;
-  }
-
-  for (const item of items) {
-    const row = document.createElement('div');
-    row.className = 'mini-list__item';
-    row.innerHTML = formatter(item);
-    container.appendChild(row);
-  }
+  elements.sourceCount.textContent = `${compactNumber.format(sourceCount)} current calls from the official EU index`;
 }
 
 function renderSidebar() {
-  const openSoon = state.data.grants
-    .filter((grant) => grant.status.id === '31094502' && grant.deadlineDate)
-    .sort((left, right) => new Date(left.deadlineDate).getTime() - new Date(right.deadlineDate).getTime())
-    .slice(0, 5);
+  elements.topProgrammes.innerHTML = '';
 
-  renderMiniList(elements.closingSoon, openSoon, (grant) => `
-    <div class="mini-list__title">${escapeHtml(grant.identifier)}</div>
-    <div class="mini-list__meta">${escapeHtml(formatDate(grant.deadlineDate))} · ${escapeHtml(formatRelative(grant.deadlineDate))}</div>
-  `);
+  const programmes = state.data.facets.frameworkProgramme.slice(0, 6);
+  if (!programmes.length) {
+    const empty = document.createElement('div');
+    empty.className = 'mini-list__item';
+    empty.textContent = 'No programme filters available.';
+    elements.topProgrammes.appendChild(empty);
+    return;
+  }
 
-  renderMiniList(elements.topProgrammes, state.data.facets.frameworkProgramme.slice(0, 6), (programme) => `
-    <div class="mini-list__title">${escapeHtml(programme.value)}</div>
-    <div class="mini-list__meta">${escapeHtml(compactNumber.format(programme.count))} calls</div>
-  `);
+  for (const programme of programmes) {
+    const button = document.createElement('button');
+    button.className = `mini-filter${state.filters.programme === programme.rawValue ? ' is-active' : ''}`;
+    button.type = 'button';
+    button.innerHTML = `
+      <span class="mini-filter__title">${escapeHtml(programme.value)}</span>
+      <span class="mini-filter__meta">${escapeHtml(compactNumber.format(programme.count))} calls</span>
+    `;
+    button.addEventListener('click', () => toggleProgrammeFilter(programme.rawValue));
+    elements.topProgrammes.appendChild(button);
+  }
 }
 
 function createFact(label, value) {
@@ -252,16 +251,38 @@ function renderResults() {
     const card = elements.grantCardTemplate.content.firstElementChild.cloneNode(true);
     const statusChip = card.querySelector('.status-chip');
     const id = card.querySelector('.grant-card__id');
-    const link = card.querySelector('.grant-card__title a');
+    const titleButton = card.querySelector('.grant-card__title-button');
+    const openLink = card.querySelector('.grant-card__open-link');
     const summary = card.querySelector('.grant-card__summary');
+    const drawer = card.querySelector('.grant-card__drawer');
+    const drawerSummary = card.querySelector('.grant-card__drawer-summary');
+    const drawerAbstract = card.querySelector('.grant-card__drawer-abstract');
+    const drawerAbstractBlock = card.querySelector('.grant-card__drawer-block--abstract');
     const facts = card.querySelector('.grant-card__facts');
 
     statusChip.dataset.status = grant.status.id;
     statusChip.textContent = grant.status.label;
     id.textContent = grant.identifier;
-    link.textContent = grant.title;
-    link.href = grant.url;
+    titleButton.textContent = grant.title;
+    titleButton.setAttribute('aria-expanded', 'false');
+    openLink.href = grant.url;
     summary.textContent = grant.destination || grant.callTitle || grant.summary || 'No destination summary available.';
+    drawerSummary.textContent = grant.destination || grant.callTitle || grant.summary || 'No short summary was exposed for this call.';
+
+    if (grant.abstract) {
+      drawerAbstract.textContent = grant.abstract;
+      drawerAbstractBlock.hidden = false;
+    } else {
+      drawerAbstract.textContent = '';
+      drawerAbstractBlock.hidden = true;
+    }
+
+    titleButton.addEventListener('click', () => {
+      const isOpen = !drawer.hidden;
+      drawer.hidden = isOpen;
+      card.classList.toggle('is-expanded', !isOpen);
+      titleButton.setAttribute('aria-expanded', String(!isOpen));
+    });
 
     facts.innerHTML = [
       createFact('Programme', getPrimaryProgramme(grant)),
@@ -288,6 +309,7 @@ function syncControls() {
 function update() {
   filterGrants();
   renderStatusPills();
+  renderSidebar();
   renderResults();
   writeHash();
 }
@@ -343,7 +365,6 @@ async function init() {
   state.data = await loadData();
   renderProgrammeOptions();
   renderMetrics();
-  renderSidebar();
   syncControls();
   wireEvents();
   update();

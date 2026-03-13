@@ -233,7 +233,10 @@ body::before {
 
 .status-pill,
 .ghost-button,
-.link-button {
+.link-button,
+.mini-filter,
+.grant-card__title-button,
+.grant-card__open-link {
   appearance: none;
   border: 1px solid rgba(24, 21, 18, 0.09);
   background: rgba(255, 255, 255, 0.72);
@@ -247,7 +250,10 @@ body::before {
 
 .status-pill:hover,
 .ghost-button:hover,
-.link-button:hover {
+.link-button:hover,
+.mini-filter:hover,
+.grant-card__title-button:hover,
+.grant-card__open-link:hover {
   transform: translateY(-1px);
   border-color: rgba(24, 21, 18, 0.16);
 }
@@ -292,19 +298,35 @@ body::before {
   gap: 10px;
 }
 
-.mini-list__item {
+.mini-list__item,
+.mini-filter {
   padding: 12px 14px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid rgba(24, 21, 18, 0.05);
 }
 
-.mini-list__title {
+.mini-filter {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.mini-filter.is-active {
+  background: var(--ink);
+  color: #fff;
+}
+
+.mini-filter.is-active .mini-filter__meta,
+.mini-filter.is-active .mini-filter__title {
+  color: #fff;
+}
+
+.mini-filter__title {
   font-size: 0.95rem;
 }
 
-.mini-list__meta {
-  margin-top: 4px;
+.mini-filter__meta {
   color: var(--muted);
   font-size: 0.9rem;
 }
@@ -404,14 +426,63 @@ body::before {
   line-height: 1.08;
 }
 
-.grant-card__title a {
+.grant-card__title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.grant-card__title-button {
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+  font: inherit;
   color: inherit;
+  cursor: pointer;
+}
+
+.grant-card__title-button:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+}
+
+.grant-card__open-link {
+  align-self: start;
   text-decoration: none;
 }
 
-.grant-card__title a:hover {
-  text-decoration: underline;
-  text-decoration-thickness: 0.08em;
+.grant-card__drawer {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(243, 238, 230, 0.85);
+  border: 1px solid rgba(24, 21, 18, 0.06);
+  display: grid;
+  gap: 14px;
+}
+
+.grant-card__drawer-label {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.grant-card__drawer-text {
+  margin: 0;
+  line-height: 1.65;
+  color: var(--ink);
+  white-space: pre-line;
+}
+
+.grant-card.is-expanded {
+  border-color: rgba(24, 21, 18, 0.12);
 }
 
 .grant-card__facts {
