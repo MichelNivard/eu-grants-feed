@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EU Grants Feed</title>
+    <meta name="description" content="A static browser for European funding calls powered by the official EU Funding & Tenders search API.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero panel">
+        <div class="hero__copy">
+          <p class="eyebrow">EU funding without the portal maze</p>
+          <h1>European grants, rendered like a feed instead of a labyrinth.</h1>
+          <p class="hero__lede">
+            Search, filter and scan open and forthcoming calls from the official Funding &amp; Tenders index.
+            The interface is static. The data snapshot can refresh daily.
+          </p>
+          <div class="hero__meta" id="hero-meta">
+            <div class="metric-tile">
+              <span class="metric-tile__value" id="metric-total">-</span>
+              <span class="metric-tile__label">Calls indexed</span>
+            </div>
+            <div class="metric-tile">
+              <span class="metric-tile__value" id="metric-live">-</span>
+              <span class="metric-tile__label">Open right now</span>
+            </div>
+            <div class="metric-tile">
+              <span class="metric-tile__value" id="metric-budget">-</span>
+              <span class="metric-tile__label">Known budget</span>
+            </div>
+          </div>
+        </div>
+        <div class="hero__aside">
+          <div class="stamp">
+            <span class="stamp__label">Last update</span>
+            <strong id="last-updated">Loading…</strong>
+            <span class="stamp__sub" id="source-count"></span>
+          </div>
+          <div class="legend">
+            <div class="legend__row"><span class="dot dot--open"></span> Open for submission</div>
+            <div class="legend__row"><span class="dot dot--forthcoming"></span> Forthcoming</div>
+          </div>
+        </div>
+      </header>
+
+      <section class="controls panel">
+        <label class="search-field">
+          <span class="sr-only">Search grants</span>
+          <input id="search-input" type="search" placeholder="Search by title, call ID, destination, or action type">
+        </label>
+
+        <div class="status-pills" id="status-pills"></div>
+
+        <div class="control-row">
+          <label class="select-field">
+            <span>Programme</span>
+            <select id="programme-select"></select>
+          </label>
+
+          <label class="select-field">
+            <span>Sort</span>
+            <select id="sort-select">
+              <option value="start-desc">Newest opening date</option>
+              <option value="deadline-asc">Closest deadline</option>
+              <option value="budget-desc">Largest budget</option>
+              <option value="title-asc">Title A-Z</option>
+            </select>
+          </label>
+
+          <button class="ghost-button" id="reset-button" type="button">Reset filters</button>
+        </div>
+      </section>
+
+      <main class="layout">
+        <aside class="sidebar panel">
+          <div>
+            <p class="sidebar__label">Snapshot view</p>
+            <h2 id="results-count">Loading…</h2>
+            <p class="sidebar__copy">Hash-based state keeps filters shareable, similar to a grant feed instead of a portal search session.</p>
+          </div>
+
+          <div class="sidebar-block">
+            <p class="sidebar__label">Closing soon</p>
+            <div id="closing-soon" class="mini-list"></div>
+          </div>
+
+          <div class="sidebar-block">
+            <p class="sidebar__label">Top programmes</p>
+            <div id="top-programmes" class="mini-list"></div>
+          </div>
+        </aside>
+
+        <section class="results panel">
+          <div class="results__header">
+            <div>
+              <p class="sidebar__label">Results</p>
+              <h2 id="results-headline">Loading grants…</h2>
+            </div>
+            <a class="ghost-button link-button" href="https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/calls-for-proposals?order=DESC&pageNumber=1&pageSize=50&sortBy=startDate&isExactMatch=true&status=31094501,31094502,31094503" target="_blank" rel="noreferrer">Open official portal</a>
+          </div>
+
+          <div id="results-list" class="results-list"></div>
+
+          <div class="results__footer">
+            <button id="load-more-button" class="ghost-button" type="button" hidden>Load more</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <template id="grant-card-template">
+      <article class="grant-card">
+        <div class="grant-card__topline">
+          <span class="status-chip"></span>
+          <span class="grant-card__id"></span>
+        </div>
+        <h3 class="grant-card__title"><a target="_blank" rel="noreferrer"></a></h3>
+        <p class="grant-card__summary"></p>
+        <dl class="grant-card__facts"></dl>
+      </article>
+    </template>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

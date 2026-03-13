@@ -1,0 +1,36 @@
+name: Daily Data Refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Refresh grants snapshot
+        run: npm run update:data
+
+      - name: Commit snapshot changes
+        run: |
+          if git diff --quiet -- data/grants.json; then
+            echo "No data changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/grants.json
+          git commit -m "chore: refresh EU grants snapshot"
+          git push
