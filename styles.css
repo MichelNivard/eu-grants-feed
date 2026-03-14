@@ -150,10 +150,21 @@ body::before {
   align-content: start;
 }
 
-.stamp strong {
+.stamp__value {
   display: block;
   margin-top: 8px;
+}
+
+.stamp__link {
+  color: inherit;
+  display: inline-block;
   font-size: 1.05rem;
+  text-decoration: none;
+}
+
+.stamp__link:hover,
+.stamp__link:focus-visible {
+  text-decoration: underline;
 }
 
 .stamp__sub {

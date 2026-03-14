@@ -21,7 +21,13 @@ jobs:
           node-version: '22'
 
       - name: Refresh grants snapshot
-        run: npm run update:data
+        env:
+          GRANTS_REFRESH_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GRANTS_REFRESH_WORKFLOW: ${{ github.workflow }}
+          GRANTS_REFRESH_EVENT: ${{ github.event_name }}
+        run: |
+          export GRANTS_REFRESHED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          npm run update:data
 
       - name: Commit snapshot changes
         run: |

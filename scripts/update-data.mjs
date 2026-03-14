@@ -140,6 +140,20 @@ function toNumber(value) {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
+function getRefreshMetadata() {
+  const refreshedAt = toIsoDate(process.env.GRANTS_REFRESHED_AT) || new Date().toISOString();
+  const workflowName = process.env.GRANTS_REFRESH_WORKFLOW || null;
+  const eventName = process.env.GRANTS_REFRESH_EVENT || null;
+  const runUrl = process.env.GRANTS_REFRESH_RUN_URL || null;
+
+  return {
+    refreshedAt,
+    workflowName,
+    eventName,
+    runUrl
+  };
+}
+
 function uniqueObjects(items) {
   const seen = new Set();
   return items.filter((item) => {
@@ -486,6 +500,7 @@ function buildSummary(grants) {
 async function main() {
   await mkdir(OUTPUT_DIR, { recursive: true });
   const now = Date.now();
+  const refresh = getRefreshMetadata();
 
   const endpoints = await fetchPortalConfig();
   console.log('Using official endpoints from portal config.');
@@ -507,13 +522,14 @@ async function main() {
     });
 
   const output = {
-    generatedAt: new Date().toISOString(),
+    generatedAt: refresh.refreshedAt,
     source: {
       config: PORTAL_CONFIG_URL,
       searchUrl: endpoints.searchUrl,
       facetUrl: endpoints.facetUrl,
       reportedTotalResults: search.totalResults,
-      storedResults: grants.length
+      storedResults: grants.length,
+      workflow: refresh
     },
     facets,
     summary: buildSummary(grants),

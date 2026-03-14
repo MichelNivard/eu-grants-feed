@@ -40,6 +40,7 @@ const elements = {
 const compactNumber = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 const moneyCompact = new Intl.NumberFormat('en', { style: 'currency', currency: 'EUR', notation: 'compact', maximumFractionDigits: 1 });
 const dateFormatter = new Intl.DateTimeFormat('en', { dateStyle: 'medium' });
+const stampFormatter = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' });
 
 function parseHash() {
   const hash = window.location.hash.replace(/^#/, '');
@@ -67,6 +68,11 @@ function writeHash() {
 function formatDate(value) {
   if (!value) return 'TBA';
   return dateFormatter.format(new Date(value));
+}
+
+function formatStampDate(value) {
+  if (!value) return 'TBA';
+  return stampFormatter.format(new Date(value));
 }
 
 function formatCurrency(value) {
@@ -194,6 +200,8 @@ function renderProgrammeOptions() {
 
 function renderMetrics() {
   const openCount = state.data.summary.byStatus['31094502'] || 0;
+  const workflowRefresh = state.data.source?.workflow || null;
+  const updatedAt = workflowRefresh?.refreshedAt || state.data.generatedAt;
   const rawSourceCount =
     state.data.source?.storedResults
       ?? state.data.source?.totalResults
@@ -207,7 +215,15 @@ function renderMetrics() {
   elements.metricTotal.textContent = compactNumber.format(state.data.summary.total);
   elements.metricLive.textContent = compactNumber.format(openCount);
   elements.metricBudget.textContent = formatCurrency(state.data.summary.knownBudgetEur);
-  elements.lastUpdated.textContent = formatDate(state.data.generatedAt);
+  elements.lastUpdated.textContent = formatStampDate(updatedAt);
+  elements.lastUpdated.title = workflowRefresh?.workflowName
+    ? `Open ${workflowRefresh.workflowName} run`
+    : 'Last refresh timestamp';
+  if (workflowRefresh?.runUrl) {
+    elements.lastUpdated.href = workflowRefresh.runUrl;
+  } else {
+    elements.lastUpdated.removeAttribute('href');
+  }
   elements.sourceCount.textContent = `${compactNumber.format(sourceCount)} current calls from the official EU index`;
 }
 
