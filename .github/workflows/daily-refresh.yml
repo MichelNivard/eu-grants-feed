@@ -7,6 +7,12 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
   refresh:
@@ -33,10 +39,28 @@ jobs:
         run: |
           if git diff --quiet -- data/grants.json; then
             echo "No data changes"
-            exit 0
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/grants.json
+            git commit -m "chore: refresh EU grants snapshot"
+            git push
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/grants.json
-          git commit -m "chore: refresh EU grants snapshot"
-          git push
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Stage static site
+        run: |
+          mkdir -p dist
+          cp index.html styles.css app.js dist/
+          cp -R data dist/data
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
